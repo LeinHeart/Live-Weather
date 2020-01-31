@@ -16,6 +16,8 @@ class GetWeatherFromDeviceLocation
   @override
   Future<Either<Failure, LiveWeather>> call(
       GetWeatherFromDeviceLocationParams params) async {
+    print(
+        'awaiting getWeatherFromDeviceLocation Repository || get_weather_from_device_location');
     return await repository.getWeatherFromDeviceLocation(
         params.lat, params.lng);
   }

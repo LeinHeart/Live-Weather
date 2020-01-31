@@ -42,11 +42,28 @@ class WeatherModel extends LiveWeather {
       clouds: Clouds.fromJson(json['clouds']),
       dt: json['dt'],
       sys: Sys.fromJson(json['sys']),
+      timezone: json['timezone'],
       id: json['id'],
       name: json['name'],
       cod: json['cod'],
-      timezone: json['timezone'],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'coord': coord,
+      'weather': weather,
+      'base': base,
+      'main': main,
+      'wind': wind,
+      'clouds': clouds,
+      'dt': dt,
+      'sys': sys,
+      'timezone': timezone,
+      'id': id,
+      'name': name,
+      'cod': cod,
+    };
   }
 }
 

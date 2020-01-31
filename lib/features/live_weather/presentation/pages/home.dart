@@ -1,26 +1,25 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:location/location.dart';
-
-import '../../../../core/location/user_location.dart';
-import '../../data/models/weather_model.dart';
+import 'package:weather_app_jojonomic_tech_test_kristopher_chayadi/core/location/user_location.dart';
+import 'package:weather_app_jojonomic_tech_test_kristopher_chayadi/features/live_weather/data/models/weather_model.dart';
+import 'package:weather_app_jojonomic_tech_test_kristopher_chayadi/features/live_weather/presentation/bloc/bloc.dart';
 
 class Home extends StatefulWidget {
+  static const String id = 'home_screen';
+
   @override
   _HomeState createState() => _HomeState();
 }
 
 class _HomeState extends State<Home> {
-  UserLocation _currentLocation;
-  String error;
+  UserLocation _userLocation;
+  int _weatherCode;
 
   //*[START Life Cycle]
   @override
   void initState() {
-    _currentLocation = UserLocation(latitude: 0.0, longitude: 0.0);
     getCurrentLocation();
     super.initState();
   }
@@ -32,175 +31,173 @@ class _HomeState extends State<Home> {
     try {
       var userLocation = await location.getLocation();
       setState(() {
-        _currentLocation = UserLocation(
+        _userLocation = UserLocation(
           latitude: userLocation.latitude,
           longitude: userLocation.longitude,
         );
       });
-
-      print('INI!!!!');
-      print(_currentLocation.latitude);
-      print(_currentLocation.longitude);
     } on Exception catch (e) {
       print('Could not get location : ${e.toString()}');
     }
   }
 
-  Future<WeatherModel> getWeather(String lat, String lng) async {
-    final response = await http.get(
-        'http://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lng&APPID=5be878e19606f24075985f51200f217d&units=metric');
-    if (response.statusCode == 200) {
-      var result = json.decode(response.body);
-      var model = WeatherModel.fromJson(result);
-      return model;
-    } else {
-      throw Exception('Failed to load Weather Information');
-    }
-  }
-
-  Future<Null> refresh() async {
+  Future<Null> refresh(BuildContext context) async {
     getCurrentLocation();
+    BlocProvider.of<LiveWeatherBloc>(context)
+      ..add(
+        GetLiveWeatherFromCurrentLocationEvent(
+          lat: _userLocation.latitude,
+          lng: _userLocation.longitude,
+        ),
+      );
   }
   //?[END Helper Method]
 
-  //! [START Build Method]
+  //![START Build Method]
   @override
   Widget build(BuildContext context) {
-    print('ITUUUUUUU!!!!!!!');
-    print(_currentLocation.latitude);
-    print(_currentLocation.longitude);
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Live Weather',
-      theme: ThemeData.light(),
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text('LIVE WEATHER'),
-        ),
-        body: Container(
-          decoration: BoxDecoration(color: Colors.white),
-          child: RefreshIndicator(
-            onRefresh: () => refresh(),
+    return Scaffold(
+      body: Stack(
+        children: <Widget>[
+          Container(
+            width: MediaQuery.of(context).size.width,
+            height: MediaQuery.of(context).size.height,
+            color: Colors.blue,
+          ),
+          RefreshIndicator(
+            onRefresh: () => refresh(context),
             child: Center(
               child: SingleChildScrollView(
                 physics: AlwaysScrollableScrollPhysics(),
-                child: FutureBuilder<WeatherModel>(
-                  future: getWeather(_currentLocation.latitude.toString(),
-                      _currentLocation.longitude.toString()),
-                  builder: (context, snapshot) {
-                    if (_currentLocation.latitude == 0.0) {
+                child: BlocBuilder<LiveWeatherBloc, LiveWeatherState>(
+                  builder: (context, state) {
+                    if (state is LoadingLiveWeatherState) {
                       return CircularProgressIndicator();
-                    } else if (snapshot.hasData) {
-                      WeatherModel model = snapshot.data;
+                    }
+                    if (state is LoadedLiveWeatherState) {
                       var fm = DateFormat('EEE, d/M/y');
                       var fmHour = DateFormat('kk:mm');
+                      WeatherModel model = state.liveWeather;
 
-                      return Container(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: <Widget>[
-                            Text(
-                              'Weather in',
-                              style: TextStyle(
-                                fontSize: 30.0,
-                              ),
-                            ),
-                            Text(
-                              model.name,
-                              style: TextStyle(fontSize: 30.0),
-                            ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: <Widget>[
-                                Image.network(
-                                    'https://openweathermap.org/img/wn/${model.weather[0].icon}@2x.png'),
-                                Text(
-                                  '${model.main.temp} °C',
-                                  style: TextStyle(
-                                    fontSize: 30.0,
+                      print('ini!!!');
+                      print(_weatherCode);
+
+                      if (model.coord.lat == 0 && model.coord.lat == 0) {
+                        refresh(context);
+                      }
+
+                      return Center(
+                        child: Container(
+                          child: Padding(
+                            padding: EdgeInsets.only(top: 100.0),
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: <Widget>[
+                                  Container(
+                                    width: 200,
+                                    height: 200,
+                                    child: Image.network(
+                                      'https://openweathermap.org/img/wn/${model.weather[0].icon}@2x.png',
+                                      scale: 0.5,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              model.weather[0].description,
-                              style: TextStyle(
-                                fontSize: 30.0,
+                                  Text(
+                                    model.name,
+                                    style: TextStyle(
+                                      fontSize: 30.0,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    model.weather[0].description,
+                                    style: TextStyle(
+                                      fontSize: 30.0,
+                                    ),
+                                  ),
+                                  SizedBox(height: 20.0),
+                                  Text(
+                                    '${model.main.temp} °C',
+                                    style: TextStyle(
+                                      fontSize: 50.0,
+                                    ),
+                                  ),
+                                  SizedBox(height: 20.0),
+                                  Text(
+                                    fm.format(
+                                        DateTime.fromMillisecondsSinceEpoch(
+                                            model.dt * 1000)),
+                                    style: TextStyle(
+                                      fontSize: 30.0,
+                                    ),
+                                  ),
+                                  Text(
+                                    fmHour.format(
+                                        DateTime.fromMillisecondsSinceEpoch(
+                                            model.dt * 1000)),
+                                    style: TextStyle(
+                                      fontSize: 30.0,
+                                    ),
+                                  ),
+                                  // Text(
+                                  //   'Wind : ${model.wind.speed} / ${model.wind.deg}',
+                                  //   style: TextStyle(
+                                  //     fontSize: 20.0,
+                                  //   ),
+                                  // ),
+                                  // Text(
+                                  //   'Pressure : ${model.main.pressure} hpa',
+                                  //   style: TextStyle(
+                                  //     fontSize: 20.0,
+                                  //   ),
+                                  // ),
+                                  // Text(
+                                  //   'Humidity : ${model.main.humidity}%',
+                                  //   style: TextStyle(
+                                  //     fontSize: 20.0,
+                                  //   ),
+                                  // ),
+                                  // Text(
+                                  //   'Sunrise : ${fmHour.format(DateTime.fromMillisecondsSinceEpoch(model.sys.sunrise * 1000))}',
+                                  //   style: TextStyle(
+                                  //     fontSize: 20.0,
+                                  //   ),
+                                  // ),
+                                  // Text(
+                                  //   'Sunset : ${fmHour.format(DateTime.fromMillisecondsSinceEpoch(model.sys.sunset * 1000))}',
+                                  //   style: TextStyle(
+                                  //     fontSize: 20.0,
+                                  //   ),
+                                  // ),
+                                  // Text(
+                                  //   'GeoCode : [${model.coord.lat} / ${model.coord.lon}]',
+                                  //   style: TextStyle(
+                                  //     fontSize: 20.0,
+                                  //   ),
+                                  // ),
+                                  SizedBox(height: 100.0),
+                                ],
                               ),
                             ),
-                            Text(
-                              fm.format(DateTime.fromMillisecondsSinceEpoch(
-                                  model.dt * 1000)),
-                              style: TextStyle(
-                                fontSize: 30.0,
-                              ),
-                            ),
-                            Text(
-                              fmHour.format(DateTime.fromMillisecondsSinceEpoch(
-                                  model.dt * 1000)),
-                              style: TextStyle(
-                                fontSize: 30.0,
-                              ),
-                            ),
-                            Text(
-                              'Wind : ${model.wind.speed} / ${model.wind.deg}',
-                              style: TextStyle(
-                                fontSize: 20.0,
-                              ),
-                            ),
-                            Text(
-                              'Pressure : ${model.main.pressure} hpa',
-                              style: TextStyle(
-                                fontSize: 20.0,
-                              ),
-                            ),
-                            Text(
-                              'Humidity : ${model.main.humidity}%',
-                              style: TextStyle(
-                                fontSize: 20.0,
-                              ),
-                            ),
-                            Text(
-                              'Sunrise : ${fmHour.format(DateTime.fromMillisecondsSinceEpoch(model.sys.sunrise * 1000))}',
-                              style: TextStyle(
-                                fontSize: 20.0,
-                              ),
-                            ),
-                            Text(
-                              'Sunset : ${fmHour.format(DateTime.fromMillisecondsSinceEpoch(model.sys.sunset * 1000))}',
-                              style: TextStyle(
-                                fontSize: 20.0,
-                              ),
-                            ),
-                            Text(
-                              'GeoCode : [${model.coord.lat} / ${model.coord.lon}]',
-                              style: TextStyle(
-                                fontSize: 20.0,
-                              ),
-                            ),
-                            SizedBox(height: 100.0),
-                          ],
-                        ),
-                      );
-                    } else if (snapshot.hasError) {
-                      return Text(
-                        '${snapshot.error}',
-                        style: TextStyle(
-                          fontSize: 30.0,
-                          color: Colors.red,
+                          ),
                         ),
                       );
                     }
-                    return CircularProgressIndicator(); //default show loading
+                    return Container();
                   },
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
-  //![END Builder Method]
+  //![END Build Method]
+
+  //![START Extracted Widget]
+
+  //![END Extracted Widget]
+
 }
