@@ -1,4 +1,4 @@
-# weather_app_jojonomic_tech_test_kristopher_chayadi
+# Live Weather
 
 A new Flutter project.
 
